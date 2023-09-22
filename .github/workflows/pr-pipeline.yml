@@ -8,6 +8,11 @@ on:
   # release:
   #   types: [published]
 
+env:
+  DIR: prod
+  AWS_ACCESS_KEY: ${{ secrets.PROD_AWS_ACCESS_KEY }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.PROD_AWS_SECRET_ACCESS_KEY }}
+
 jobs:
   check-format:
     runs-on: ubuntu-latest
@@ -41,8 +46,8 @@ jobs:
           }
           EOL
       - name: Terraform Init
-        run: terraform -chdir=${{ matrix.dir }} init -upgrade
+        run: terraform -chdir=$DIR init -upgrade
       - name: Terraform Validate
-        run: terraform -chdir=${{ matrix.dir }} validate
+        run: terraform -chdir=$DIR validate
       - name: Terraform Plan (Mock)
-        run: terraform -chdir=${{ matrix.dir }} plan
+        run: terraform -chdir=$DIR plan

@@ -26,25 +26,11 @@ jobs:
   validations:
     runs-on: ubuntu-latest
     container: hashicorp/terraform
-    strategy:
-      matrix: {
-        dir: ['prod']
-      }
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Terraform Cloud login
-        run: |
-          mkdir -p ~/.terraform.d
-          cat > ~/.terraform.d/credentials.tfrc.json << EOL
-          {
-            "credentials": {
-              "app.terraform.io": {
-                "token": "${{ secrets.TF_CLOUD_TOKEN }}"
-              }
-            }
-          }
-          EOL
+        run: .github/workflows/scripts/terraform-login.sh
       - name: Terraform Init
         run: terraform -chdir=$DIR init -upgrade
       - name: Terraform Validate

@@ -28,6 +28,18 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Terraform Cloud login
+        run: |
+          cat > ~/.terraform.d/credentials.tfrc.json << EOL
+          {
+            "credentials": {
+              "app.terraform.io": {
+                "token": "TEST"
+              }
+            }
+          }
+          EOL
+          cat ~/.terraform.d/credentials.tfrc.json
       - name: Terraform Init
         run: terraform -chdir=${{ matrix.dir }} init -upgrade
       - name: Terraform Validate

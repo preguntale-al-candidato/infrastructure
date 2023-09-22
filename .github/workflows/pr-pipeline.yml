@@ -1,0 +1,36 @@
+name: Terraform
+on:
+  # push:
+  #   branches: [main]
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches: [main]
+  # release:
+  #   types: [published]
+
+jobs:
+  check-format:
+    runs-on: ubuntu-latest
+    container: hashicorp/terraform
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive -diff
+
+  validations:
+    runs-on: ubuntu-latest
+    container: hashicorp/terraform
+    strategy:
+      matrix: {
+        dir: ['prod']
+      }
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Terraform Init
+        run: terraform -chdir=${{ matrix.dir }} init -upgrade
+      - name: Terraform Validate
+        run: terraform -chdir=${{ matrix.dir }} validate
+      - name: Terraform Plan (Mock)
+        run: terraform -chdir=${{ matrix.dir }} plan

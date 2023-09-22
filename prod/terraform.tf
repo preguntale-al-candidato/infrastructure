@@ -1,7 +1,6 @@
 terraform {
-  backend "remote" {
+  cloud {
     organization = "preguntale-al-candidato"
-
     workspaces {
       name = "prod"
     }

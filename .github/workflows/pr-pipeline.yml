@@ -30,6 +30,7 @@ jobs:
         uses: actions/checkout@v4
       - name: Terraform Cloud login
         run: |
+          mkdir -p ~/.terraform.d
           cat > ~/.terraform.d/credentials.tfrc.json << EOL
           {
             "credentials": {

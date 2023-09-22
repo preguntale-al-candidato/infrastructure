@@ -25,7 +25,7 @@ module "website" {
 #########################################
 
 resource "aws_iam_user" "website_deployer_user" {
-  name = "website-deployer"
+  name          = "website-deployer"
   force_destroy = true
 }
 
@@ -37,11 +37,11 @@ resource "aws_iam_policy" "website_deployer_policy" {
     Statement = [
       {
         Effect   = "Allow"
-        Action = ["s3:ListBucke"]
+        Action   = ["s3:ListBucke"]
         Resource = [module.website.website_bucket_arn]
       },
       {
-        Effect   = "Allow"
+        Effect = "Allow"
         Action = [
           "s3:DeleteObject",
           "s3:GetObject",

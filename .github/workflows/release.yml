@@ -40,7 +40,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Terraform Cloud login
-        run: .github/workflows/scripts/terraform-login.sh
+        run: |
+          mkdir -p ~/.terraform.d
+          cat > ~/.terraform.d/credentials.tfrc.json << EOL
+          {
+            "credentials": {
+              "app.terraform.io": {
+                "token": "${{ secrets.TF_CLOUD_TOKEN }}"
+              }
+            }
+          }
+          EOL
       - name: Terraform Init
         run: terraform init -upgrade
       - name: Terraform Plan
@@ -63,7 +73,17 @@ jobs:
           name: plan
           path: plan.out
       - name: Terraform Cloud login
-        run: .github/workflows/scripts/terraform-login.sh
+        run: |
+          mkdir -p ~/.terraform.d
+          cat > ~/.terraform.d/credentials.tfrc.json << EOL
+          {
+            "credentials": {
+              "app.terraform.io": {
+                "token": "${{ secrets.TF_CLOUD_TOKEN }}"
+              }
+            }
+          }
+          EOL
       - name: Terraform Init
         run: terraform init -upgrade
       - name: Terraform Apply

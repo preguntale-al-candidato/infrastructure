@@ -1,12 +1,7 @@
 name: Terraform
 on:
-  # push:
-  #   branches: [main]
-  pull_request:
-    types: [opened, reopened, synchronize]
-    branches: [main]
-  # release:
-  #   types: [published]
+  release:
+    types: [published]
 
 env:
   DIR: prod
@@ -32,8 +27,10 @@ jobs:
       - name: Terraform Cloud login
         run: .github/workflows/scripts/terraform-login.sh
       - name: Terraform Init
-        run: terraform -chdir=$DIR init -upgrade
+        run: terraform init -upgrade
       - name: Terraform Validate
-        run: terraform -chdir=$DIR validate
-      - name: Terraform Plan (Mock)
-        run: terraform -chdir=$DIR plan
+        run: terraform validate
+      - name: Terraform Plan
+        run: terraform plan -out=plan.out
+      - name: Terraform Apply
+        run: terraform apply plan.out

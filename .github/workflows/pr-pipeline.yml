@@ -35,7 +35,7 @@ jobs:
           {
             "credentials": {
               "app.terraform.io": {
-                "token": "TEST"
+                "token": ${{ secrets.TF_CLOUD_TOKEN }}
               }
             }
           }

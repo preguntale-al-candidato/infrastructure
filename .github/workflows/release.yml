@@ -18,7 +18,7 @@ jobs:
       - name: Terraform Format Check
         run: terraform fmt -check -recursive -diff
 
-  validations:
+  validate:
     runs-on: ubuntu-latest
     container: hashicorp/terraform
     steps:
@@ -32,5 +32,39 @@ jobs:
         run: terraform validate
       - name: Terraform Plan
         run: terraform plan -out=plan.out
+
+  plan:
+    runs-on: ubuntu-latest
+    container: hashicorp/terraform
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Terraform Cloud login
+        run: .github/workflows/scripts/terraform-login.sh
+      - name: Terraform Init
+        run: terraform init -upgrade
+      - name: Terraform Plan
+        run: terraform plan -out=plan.out
+      - name: Upload the plan output
+        uses: actions/upload-artifact@v3
+        with:
+          name: plan
+          path: plan.out
+
+  apply:
+    runs-on: ubuntu-latest
+    container: hashicorp/terraform
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Download plan output
+        uses: actions/download-artifact@v3
+        with:
+          name: plan
+          path: plan.out
+      - name: Terraform Cloud login
+        run: .github/workflows/scripts/terraform-login.sh
+      - name: Terraform Init
+        run: terraform init -upgrade
       - name: Terraform Apply
         run: terraform apply plan.out

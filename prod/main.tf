@@ -10,6 +10,10 @@ locals {
 # Route53
 #########
 module "route53" {
+  providers = {
+    aws = aws.main
+  }
+
   source  = "cn-terraform/route53/aws"
   version = "0.0.1"
 

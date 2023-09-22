@@ -15,11 +15,7 @@ terraform {
   }
 }
 
-# Configure the AWS Default provider
-provider "aws" {
-  region = "eu-west-2"
-}
-
+# Configure the AWS Main provider
 provider "aws" {
   alias  = "main"
   region = "eu-west-2"

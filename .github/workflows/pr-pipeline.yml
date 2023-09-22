@@ -40,7 +40,6 @@ jobs:
             }
           }
           EOL
-          cat ~/.terraform.d/credentials.tfrc.json
       - name: Terraform Init
         run: terraform -chdir=${{ matrix.dir }} init -upgrade
       - name: Terraform Validate

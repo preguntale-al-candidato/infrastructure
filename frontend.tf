@@ -37,7 +37,7 @@ resource "aws_iam_policy" "website_deployer_policy" {
     Statement = [
       {
         Effect   = "Allow"
-        Action   = ["s3:ListBucke"]
+        Action   = ["s3:ListBucket"]
         Resource = [module.website.website_bucket_arn]
       },
       {

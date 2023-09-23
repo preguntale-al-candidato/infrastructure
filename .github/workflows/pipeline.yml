@@ -1,4 +1,4 @@
-name: Terraform
+name: PR-Main
 on:
   push:
     branches: [main]

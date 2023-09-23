@@ -10,10 +10,6 @@ locals {
 # Route53
 #########
 module "route53" {
-  providers = {
-    aws = aws.main
-  }
-
   source  = "cn-terraform/route53/aws"
   version = "0.0.1"
 
@@ -40,8 +36,6 @@ resource "aws_acm_certificate" "cert" {
 }
 
 resource "aws_route53_record" "acm_certificate_validation_records" {
-  provider = aws.main
-
   for_each = {
     for dvo in aws_acm_certificate.cert.domain_validation_options : dvo.domain_name => {
       name   = dvo.resource_record_name

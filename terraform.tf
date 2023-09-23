@@ -10,14 +10,13 @@ terraform {
     aws = {
       source                = "hashicorp/aws"
       version               = "~> 5.0"
-      configuration_aliases = [aws.main, aws.acm_provider]
+      configuration_aliases = [aws.acm_provider]
     }
   }
 }
 
 # Configure the AWS Main provider
 provider "aws" {
-  alias  = "main"
   region = "eu-west-2"
 }
 

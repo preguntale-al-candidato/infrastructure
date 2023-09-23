@@ -3,7 +3,7 @@
 ############
 module "website" {
   providers = {
-    aws.main         = aws.main
+    aws.main         = aws
     aws.acm_provider = aws.acm_provider
   }
 

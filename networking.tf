@@ -31,7 +31,7 @@ resource "aws_subnet" "public" {
 
 # Route table
 resource "aws_route_table" "public" {
-  vpc_id = aws_vpc.vpc.id
+  vpc_id = aws_vpc.main.id
 }
 
 # Route to access internet
@@ -79,7 +79,7 @@ resource "aws_route_table_association" "public" {
 
 # # Route table
 # resource "aws_route_table" "private" {
-#   vpc_id = aws_vpc.vpc.id
+#   vpc_id = aws_vpc.main.id
 # }
 
 # # Route to access internet

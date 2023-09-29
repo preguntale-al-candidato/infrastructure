@@ -2,8 +2,6 @@
 # ACM Certificate
 #################
 resource "aws_acm_certificate" "cert_lb" {
-  provider = aws.acm_provider
-
   domain_name               = "*.${local.domain_name}"
   subject_alternative_names = [local.domain_name]
   validation_method         = "DNS"

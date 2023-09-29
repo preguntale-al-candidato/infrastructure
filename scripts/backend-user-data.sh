@@ -13,3 +13,6 @@ docker-compose version
 
 # API_KEY=$(aws ssm get-parameter --name "your_parameter_name" --with-decryption --query "Parameter.Value" --output text)
 # docker run -e API_KEY=$API_KEY your_docker_image_name
+
+# Run sample app
+docker run -it --rm -d -p 8000:80 --name web nginx

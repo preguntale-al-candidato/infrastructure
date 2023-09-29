@@ -74,26 +74,26 @@ resource "aws_iam_instance_profile" "backend" {
   role = aws_iam_role.backend.name
 }
 
-resource "aws_iam_role_policy" "backend" {
-  name = "${local.name_prefix}-backend"
-  role = aws_iam_role.backend.id
+# resource "aws_iam_role_policy" "backend" {
+#   name = "${local.name_prefix}-backend"
+#   role = aws_iam_role.backend.id
 
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      # {
-      #   Action   = ["ssm:GetParameters"],
-      #   Effect   = "Allow",
-      #   Resource = "arn:aws:ssm:region:account-id:parameter/your_parameter_name"
-      # },
-      # {
-      #   Action   = ["kms:Decrypt"],
-      #   Effect   = "Allow",
-      #   Resource = "arn:aws:kms:region:account-id:key/your-kms-key-id"
-      # }
-    ]
-  })
-}
+#   policy = jsonencode({
+#     Version = "2012-10-17",
+#     Statement = [
+#       {
+#         Action   = ["ssm:GetParameters"],
+#         Effect   = "Allow",
+#         Resource = "arn:aws:ssm:region:account-id:parameter/your_parameter_name"
+#       },
+#       {
+#         Action   = ["kms:Decrypt"],
+#         Effect   = "Allow",
+#         Resource = "arn:aws:kms:region:account-id:key/your-kms-key-id"
+#       }
+#     ]
+#   })
+# }
 
 ################
 # Segurity group
@@ -133,12 +133,11 @@ resource "aws_security_group_rule" "backend_db_from_self" {
 # Backend Egress rule
 resource "aws_security_group_rule" "backend_all_egress" {
   security_group_id = aws_security_group.backend.id
-
-  type        = "egress"
-  from_port   = 0
-  to_port     = 0
-  protocol    = "-1"
-  cidr_blocks = ["0.0.0.0/0"]
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
 }
 
 #################
@@ -153,9 +152,7 @@ resource "aws_launch_template" "backend" {
 
   instance_type = "t2.micro"
   image_id      = data.aws_ssm_parameter.amazon_linux_ami.value
-
   user_data = base64encode(file("${path.module}/scripts/backend-user-data.sh"))
-
   vpc_security_group_ids = [aws_security_group.backend.id]
 
   iam_instance_profile {
@@ -166,11 +163,21 @@ resource "aws_launch_template" "backend" {
 ####################
 # Auto Scaling Group
 ####################
-# resource "aws_autoscaling_group" "backend" {
-#   # Launch config, VPC zone ids, etc
+resource "aws_autoscaling_group" "backend" {
+  name_prefix = local.name_prefix
 
-#   target_group_arns = [aws_lb_target_group.backend.arn]
-# }
+  min_size         = 1
+  max_size         = 1
+  desired_capacity = 1
+
+  launch_template {
+    id      = aws_launch_template.backend.id
+    version = "$Latest"
+  }
+
+  vpc_zone_identifier = [for subnet in aws_subnet.public : subnet.id]
+  target_group_arns   = [aws_lb_target_group.backend.arn]
+}
 
 ##############################
 # Load balancing configuration
@@ -178,18 +185,18 @@ resource "aws_launch_template" "backend" {
 
 # Target Group
 resource "aws_lb_target_group" "backend" {
-  # Other config
+  name = "${local.name_prefix}-backend"
 
   protocol = "HTTP"
-  port     = 80
+  port     = 8000
   vpc_id   = aws_vpc.main.id
 }
 
 # Attachment
-# resource "aws_autoscaling_attachment" "backend_asg_lb_attachment" {
-#   autoscaling_group_name = aws_autoscaling_group.backend.id
-#   alb_target_group_arn   = aws_lb_target_group.backend.arn
-# }
+resource "aws_autoscaling_attachment" "backend_asg_lb_attachment" {
+  autoscaling_group_name = aws_autoscaling_group.backend.id
+  alb_target_group_arn   = aws_lb_target_group.backend.arn
+}
 
 # Route53 API record
 resource "aws_route53_record" "api" {

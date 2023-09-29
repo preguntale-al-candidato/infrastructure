@@ -53,7 +53,7 @@ resource "aws_iam_policy" "website_deployer_policy" {
   })
 }
 
-resource "aws_iam_user_policy_attachment" "test-attach" {
+resource "aws_iam_user_policy_attachment" "website_deployer_policy_attach" {
   user       = aws_iam_user.website_deployer_user.name
   policy_arn = aws_iam_policy.website_deployer_policy.arn
 }

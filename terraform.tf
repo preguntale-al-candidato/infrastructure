@@ -19,12 +19,12 @@ terraform {
 provider "aws" {
   region = "eu-west-2"
   default_tags {
-   tags = {
-     Environment = "prod"
-     Owner       = "craneando.co.uk"
-     Project     = "preguntale-al-candidato"
-   }
- }
+    tags = {
+      Environment = "Prod"
+      Owner       = "craneando.co.uk"
+      Service     = "preguntale-al-candidato"
+    }
+  }
 }
 
 # Configure the AWS ACM provider
@@ -33,10 +33,10 @@ provider "aws" {
   region = "us-east-1"
 
   default_tags {
-   tags = {
-     Environment = "prod"
-     Owner       = "craneando.co.uk"
-     Project     = "preguntale-al-candidato"
-   }
- }
+    tags = {
+      Environment = "Prod"
+      Owner       = "craneando.co.uk"
+      Service     = "preguntale-al-candidato"
+    }
+  }
 }

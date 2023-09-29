@@ -101,7 +101,7 @@ resource "aws_iam_role_policy" "backend" {
 resource "aws_security_group" "backend" {
   name        = "${local.name_prefix}-backend"
   description = "Traffic to and from backend"
-  vpc_id      = module.networking.vpc_id
+  vpc_id      = aws_vpc.main.id
 }
 
 # Backend API ingress rule from LB
@@ -182,7 +182,7 @@ resource "aws_lb_target_group" "backend" {
 
   protocol = "HTTP"
   port     = 80
-  vpc_id   = module.networking.vpc_id
+  vpc_id   = aws_vpc.main.id
 }
 
 # Attachment

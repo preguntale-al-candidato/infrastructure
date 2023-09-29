@@ -20,6 +20,7 @@ provider "aws" {
   region = "eu-west-2"
   default_tags {
     tags = {
+      Name = local.name_prefix
       Environment = "Prod"
       Owner       = "craneando.co.uk"
       Service     = "preguntale-al-candidato"

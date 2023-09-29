@@ -147,4 +147,8 @@ resource "aws_lb_listener" "https" {
   port              = "443"
   protocol          = "HTTPS"
   certificate_arn   = aws_acm_certificate.cert.arn
+
+  default_action {
+    # Leave this block empty to avoid having a default action
+  }
 }

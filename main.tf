@@ -64,3 +64,106 @@ resource "aws_acm_certificate_validation" "cert_validation" {
   certificate_arn         = aws_acm_certificate.cert.arn
   validation_record_fqdns = [for record in aws_route53_record.acm_certificate_validation_records : record.fqdn]
 }
+
+############
+# Networking
+############
+module "networking" {
+  source  = "cn-terraform/networking/aws"
+  version = "3.0.0"
+
+  cidr_block = "172.16.0.0/16"
+  single_nat = true
+
+  public_subnets = {
+    first_public_subnet = {
+      availability_zone = "eu-west-2a"
+      cidr_block        = "172.16.0.0/18"
+    }
+    second_public_subnet = {
+      availability_zone = "eu-west-2b"
+      cidr_block        = "172.16.64.0/18"
+    }
+  }
+
+  private_subnets = {
+    first_private_subnet = {
+      availability_zone = "eu-west-2a"
+      cidr_block        = "172.16.128.0/18"
+    }
+    second_private_subnet = {
+      availability_zone = "eu-west-2b"
+      cidr_block        = "172.16.192.0/18"
+    }
+  }
+}
+
+################
+# Load Balancing
+################
+# Load Balancer security group
+resource "aws_security_group" "lb_sg" {
+  name        = "${local.name_prefix}-lb"
+  description = "Allow HTTPS to ALB"
+  vpc_id      = module.networking.vpc_id
+}
+
+# LB HTTPS Ingress rule
+resource "aws_security_group_rule" "https_ingress" {
+  security_group_id = aws_security_group.lb_sg.id
+
+  type        = "ingress"
+  from_port   = 443
+  to_port     = 443
+  protocol    = "tcp"
+  cidr_blocks = ["0.0.0.0/0"]
+}
+
+# LB Egress rule
+resource "aws_security_group_rule" "all_egress" {
+  security_group_id = aws_security_group.lb_sg.id
+
+  type        = "egress"
+  from_port   = 0
+  to_port     = 0
+  protocol    = "-1"
+  cidr_blocks = ["0.0.0.0/0"]
+}
+
+# Application Load Balancer
+resource "aws_lb" "lb" {
+  name               = local.name_prefix
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.lb_sg.id]
+  subnets            = [for subnet in module.networking.public_subnets : subnet.id]
+
+  enable_deletion_protection = false
+}
+
+# Route53 API record
+resource "aws_route53_record" "api" {
+  zone_id = module.route53.zone_id
+  name    = "api"
+  type    = "A"
+
+  alias {
+    name                   = aws_lb.lb.dns_name
+    zone_id                = aws_lb.lb.zone_id
+    evaluate_target_health = true
+  }
+}
+
+# HTTPS ALB listener
+# resource "aws_lb_listener" "https" {
+#   load_balancer_arn = aws_lb.lb.arn
+#   port              = "443"
+#   protocol          = "HTTPS"
+
+#   certificate_arn   = aws_acm_certificate.cert.arn
+
+#   default_action {
+#     type             = "forward"
+#     target_group_arn = aws_lb_target_group.main.arn
+#   }
+# }

@@ -49,10 +49,3 @@ resource "aws_ecr_repository_policy" "backend_deployer_policy" {
   policy     = data.aws_iam_policy_document.backend_deployer_policy.json
 }
 
-#####################
-# ECS Task Definition
-#####################
-
-#############
-# ECS Service
-#############

@@ -68,9 +68,9 @@ resource "aws_route_table_association" "public" {
 resource "aws_subnet" "private" {
   for_each = local.private_subnets
 
-  vpc_id     = aws_vpc.main.id
+  vpc_id            = aws_vpc.main.id
   availability_zone = each.value.availability_zone
-  cidr_block = each.value.cidr_block
+  cidr_block        = each.value.cidr_block
 
   tags = {
     Name = each.key

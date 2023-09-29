@@ -216,7 +216,7 @@ resource "aws_lb_listener_rule" "api" {
 
   condition {
     host_header {
-      values = [aws_route53_record.api.name]
+      values = [aws_route53_record.api.fqdn]
     }
   }
 }

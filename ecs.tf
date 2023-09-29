@@ -19,16 +19,16 @@ module "networking" {
     }
   }
 
-  private_subnets = {
-    first_private_subnet = {
-      availability_zone = "eu-west-2a"
-      cidr_block        = "172.16.128.0/18"
-    }
-    second_private_subnet = {
-      availability_zone = "eu-west-2b"
-      cidr_block        = "172.16.192.0/18"
-    }
-  }
+  # private_subnets = {
+  #   first_private_subnet = {
+  #     availability_zone = "eu-west-2a"
+  #     cidr_block        = "172.16.128.0/18"
+  #   }
+  #   second_private_subnet = {
+  #     availability_zone = "eu-west-2b"
+  #     cidr_block        = "172.16.192.0/18"
+  #   }
+  # }
 }
 
 ###################

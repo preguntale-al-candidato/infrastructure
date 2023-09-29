@@ -150,9 +150,9 @@ data "aws_ssm_parameter" "amazon_linux_ami" {
 resource "aws_launch_template" "backend" {
   name = "${local.name_prefix}-backend"
 
-  instance_type = "t2.micro"
-  image_id      = data.aws_ssm_parameter.amazon_linux_ami.value
-  user_data = base64encode(file("${path.module}/scripts/backend-user-data.sh"))
+  instance_type          = "t2.micro"
+  image_id               = data.aws_ssm_parameter.amazon_linux_ami.value
+  user_data              = base64encode(file("${path.module}/scripts/backend-user-data.sh"))
   vpc_security_group_ids = [aws_security_group.backend.id]
 
   iam_instance_profile {

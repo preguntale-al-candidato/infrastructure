@@ -20,9 +20,9 @@ resource "aws_internet_gateway" "internet_gw" {
 resource "aws_subnet" "public" {
   for_each = local.public_subnets
 
-  vpc_id     = aws_vpc.main.id
+  vpc_id            = aws_vpc.main.id
   availability_zone = each.value.availability_zone
-  cidr_block = each.value.cidr_block
+  cidr_block        = each.value.cidr_block
 
   tags = {
     Name = each.key
@@ -36,7 +36,7 @@ resource "aws_route_table" "public" {
 
 # Route to access internet
 resource "aws_route" "public_access_to_internet" {
-  route_table_id         =  aws_route_table.public.id
+  route_table_id         = aws_route_table.public.id
   destination_cidr_block = "0.0.0.0/0"
   gateway_id             = aws_internet_gateway.internet_gw.id
 }

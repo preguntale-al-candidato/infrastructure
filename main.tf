@@ -76,25 +76,25 @@ module "networking" {
   single_nat = true
 
   public_subnets = {
-    first_public_subnet = {
+    public_subnet_a = {
       availability_zone = "eu-west-2a"
       cidr_block        = "172.16.0.0/18"
     }
-    second_public_subnet = {
-      availability_zone = "eu-west-2b"
-      cidr_block        = "172.16.64.0/18"
-    }
+    # public_subnet_b = {
+    #   availability_zone = "eu-west-2b"
+    #   cidr_block        = "172.16.64.0/18"
+    # }
   }
 
   private_subnets = {
-    first_private_subnet = {
+    private_subnet_a = {
       availability_zone = "eu-west-2a"
       cidr_block        = "172.16.128.0/18"
     }
-    second_private_subnet = {
-      availability_zone = "eu-west-2b"
-      cidr_block        = "172.16.192.0/18"
-    }
+    # private_subnet_b = {
+    #   availability_zone = "eu-west-2b"
+    #   cidr_block        = "172.16.192.0/18"
+    # }
   }
 }
 

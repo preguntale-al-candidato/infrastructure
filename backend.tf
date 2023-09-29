@@ -99,7 +99,7 @@ resource "aws_iam_role_policy" "backend" {
 # Segurity group
 ################
 resource "aws_security_group" "backend" {
-  name = "${local.name_prefix}-backend"
+  name        = "${local.name_prefix}-backend"
   description = "Traffic to and from backend"
   vpc_id      = module.networking.vpc_id
 }
@@ -108,10 +108,10 @@ resource "aws_security_group" "backend" {
 resource "aws_security_group_rule" "backend_api_from_lb" {
   security_group_id = aws_security_group.backend.id
 
-  type        = "ingress"
-  from_port   = 8000
-  to_port     = 8000
-  protocol    = "tcp"
+  type                     = "ingress"
+  from_port                = 8000
+  to_port                  = 8000
+  protocol                 = "tcp"
   source_security_group_id = aws_security_group.lb_sg.id
 }
 
@@ -123,11 +123,11 @@ resource "aws_security_group_rule" "backend_db_from_self" {
   for_each = toset(["2379", "9000", "9001", "9091", "19530"])
 
   security_group_id = aws_security_group.backend.id
-  type        = "ingress"
-  from_port   = each.value
-  to_port     = each.value
-  protocol    = "tcp"
-  self = true
+  type              = "ingress"
+  from_port         = each.value
+  to_port           = each.value
+  protocol          = "tcp"
+  self              = true
 }
 
 # Backend Egress rule
@@ -145,7 +145,7 @@ resource "aws_security_group_rule" "backend_all_egress" {
 # Launch template
 #################
 data "aws_ssm_parameter" "amazon_linux_ami" {
-   name     = "/aws/service/ami-amazon-linux-latest/al2023-ami-minimal-kernel-default-x86_64"
+  name = "/aws/service/ami-amazon-linux-latest/al2023-ami-minimal-kernel-default-x86_64"
 }
 
 resource "aws_launch_template" "backend" {

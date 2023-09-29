@@ -49,3 +49,59 @@ resource "aws_ecr_repository_policy" "backend_deployer_policy" {
   policy     = data.aws_iam_policy_document.backend_deployer_policy.json
 }
 
+####################
+# Auto Scaling Group
+####################
+# resource "aws_autoscaling_group" "backend" {
+#   # Launch config, VPC zone ids, etc
+
+#   target_group_arns = [aws_lb_target_group.backend.arn]
+# }
+
+##############################
+# Load balancing configuration
+##############################
+
+# Target Group
+resource "aws_lb_target_group" "backend" {
+  # Other config
+
+  protocol = "HTTP"
+  port     = 80
+  vpc_id   = module.networking.vpc_id
+}
+
+# Attachment
+# resource "aws_autoscaling_attachment" "backend_asg_lb_attachment" {
+#   autoscaling_group_name = aws_autoscaling_group.backend.id
+#   alb_target_group_arn   = aws_lb_target_group.backend.arn
+# }
+
+# Route53 API record
+resource "aws_route53_record" "api" {
+  zone_id = module.route53.zone_id
+  name    = "api"
+  type    = "A"
+
+  alias {
+    name                   = aws_lb.lb.dns_name
+    zone_id                = aws_lb.lb.zone_id
+    evaluate_target_health = true
+  }
+}
+
+# ALB listener rule
+resource "aws_lb_listener_rule" "api" {
+  listener_arn = aws_lb_listener.https.arn
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.backend.arn
+  }
+
+  condition {
+    host_header {
+      values = [aws_route53_record.api.name]
+    }
+  }
+}

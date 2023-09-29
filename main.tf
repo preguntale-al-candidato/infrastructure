@@ -109,7 +109,7 @@ resource "aws_security_group" "lb_sg" {
 }
 
 # LB HTTPS Ingress rule
-resource "aws_security_group_rule" "https_ingress" {
+resource "aws_security_group_rule" "lb_https_ingress" {
   security_group_id = aws_security_group.lb_sg.id
 
   type        = "ingress"
@@ -120,7 +120,7 @@ resource "aws_security_group_rule" "https_ingress" {
 }
 
 # LB Egress rule
-resource "aws_security_group_rule" "all_egress" {
+resource "aws_security_group_rule" "lb_all_egress" {
   security_group_id = aws_security_group.lb_sg.id
 
   type        = "egress"

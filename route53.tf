@@ -1,11 +1,3 @@
-########
-# Locals
-########
-locals {
-  name_prefix = "pac"
-  domain_name = "preguntalealcandidato.com"
-}
-
 #########
 # Route53
 #########

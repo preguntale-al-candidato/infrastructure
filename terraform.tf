@@ -18,10 +18,26 @@ terraform {
 # Configure the AWS Main provider
 provider "aws" {
   region = "eu-west-2"
+  default_tags {
+    tags = {
+      Name        = local.name_prefix
+      Environment = "Prod"
+      Owner       = "craneando.co.uk"
+      Service     = "preguntale-al-candidato"
+    }
+  }
 }
 
 # Configure the AWS ACM provider
 provider "aws" {
   alias  = "acm_provider"
   region = "us-east-1"
+
+  default_tags {
+    tags = {
+      Environment = "Prod"
+      Owner       = "craneando.co.uk"
+      Service     = "preguntale-al-candidato"
+    }
+  }
 }

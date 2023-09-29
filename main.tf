@@ -149,6 +149,11 @@ resource "aws_lb_listener" "https" {
   certificate_arn   = aws_acm_certificate.cert.arn
 
   default_action {
-    # Leave this block empty to avoid having a default action
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Default response not implemented"
+      status_code  = "501"
+    }
   }
 }

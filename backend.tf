@@ -1,10 +1,42 @@
 #########################################
 # IAM user to deploy new backend versions
 #########################################
-
 resource "aws_iam_user" "backend_deployer_user" {
   name          = "backend-deployer"
   force_destroy = true
+}
+
+resource "aws_iam_policy" "backend_deployer_policy" {
+  name        = "backend-deployer"
+  description = "Permissions to deploy to the Backend ECR repository"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:BatchGetImage",
+          "ecr:CompleteLayerUpload",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:InitiateLayerUpload",
+          "ecr:PutImage",
+          "ecr:UploadLayerPart"
+        ]
+        Resource = [aws_ecr_repository.backend.arn]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_user_policy_attachment" "backend_deployer_policy_attach" {
+  user       = aws_iam_user.backend_deployer_user.name
+  policy_arn = aws_iam_policy.backend_deployer_policy.arn
 }
 
 #######################################
@@ -49,6 +81,105 @@ resource "aws_ecr_repository_policy" "backend_deployer_policy" {
   policy     = data.aws_iam_policy_document.backend_deployer_policy.json
 }
 
+
+###############
+# Load Balancer
+###############
+# Load Balancer security group
+resource "aws_security_group" "lb_sg" {
+  name        = "${local.name_prefix}-lb"
+  description = "Allow HTTPS to ALB"
+  vpc_id      = aws_vpc.main.id
+}
+
+# LB HTTPS Ingress rule
+resource "aws_security_group_rule" "lb_https_ingress" {
+  security_group_id = aws_security_group.lb_sg.id
+
+  type        = "ingress"
+  from_port   = 443
+  to_port     = 443
+  protocol    = "tcp"
+  cidr_blocks = ["0.0.0.0/0"]
+}
+
+# LB Egress rule
+resource "aws_security_group_rule" "lb_all_egress" {
+  security_group_id = aws_security_group.lb_sg.id
+
+  type        = "egress"
+  from_port   = 0
+  to_port     = 0
+  protocol    = "-1"
+  cidr_blocks = ["0.0.0.0/0"]
+}
+
+# Application Load Balancer
+resource "aws_lb" "lb" {
+  name               = local.name_prefix
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.lb_sg.id]
+  subnets            = [for subnet in aws_subnet.public : subnet.id]
+
+  enable_deletion_protection = false
+}
+
+# HTTPS ALB listener
+resource "aws_lb_listener" "https" {
+  load_balancer_arn = aws_lb.lb.arn
+  port              = "443"
+  protocol          = "HTTPS"
+  certificate_arn   = aws_acm_certificate.cert.arn
+
+  default_action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Default response not implemented"
+      status_code  = "501"
+    }
+  }
+}
+
+# Route53 API record
+resource "aws_route53_record" "api" {
+  zone_id = module.route53.zone_id
+  name    = "api"
+  type    = "A"
+
+  alias {
+    name                   = aws_lb.lb.dns_name
+    zone_id                = aws_lb.lb.zone_id
+    evaluate_target_health = true
+  }
+}
+
+# Target Group
+resource "aws_lb_target_group" "backend" {
+  name = "${local.name_prefix}-backend"
+
+  protocol = "HTTP"
+  port     = 8000
+  vpc_id   = aws_vpc.main.id
+}
+
+# ALB listener rule
+resource "aws_lb_listener_rule" "api" {
+  listener_arn = aws_lb_listener.https.arn
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.backend.arn
+  }
+
+  condition {
+    host_header {
+      values = [aws_route53_record.api.fqdn]
+    }
+  }
+}
+
 ####################
 # Backend IAM config
 ####################
@@ -74,26 +205,44 @@ resource "aws_iam_instance_profile" "backend" {
   role = aws_iam_role.backend.name
 }
 
-# resource "aws_iam_role_policy" "backend" {
-#   name = "${local.name_prefix}-backend"
-#   role = aws_iam_role.backend.id
+resource "aws_iam_role_policy" "backend" {
+  name = "${local.name_prefix}-backend"
+  role = aws_iam_role.backend.id
 
-#   policy = jsonencode({
-#     Version = "2012-10-17",
-#     Statement = [
-#       {
-#         Action   = ["ssm:GetParameters"],
-#         Effect   = "Allow",
-#         Resource = "arn:aws:ssm:region:account-id:parameter/your_parameter_name"
-#       },
-#       {
-#         Action   = ["kms:Decrypt"],
-#         Effect   = "Allow",
-#         Resource = "arn:aws:kms:region:account-id:key/your-kms-key-id"
-#       }
-#     ]
-#   })
-# }
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action   = ["ecr:GetAuthorizationToken"]
+        Effect   = "Allow"
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:GetRepositoryPolicy",
+          "ecr:DescribeRepositories",
+          "ecr:ListImages",
+          "ecr:DescribeImages",
+          "ecr:BatchGetImage"
+        ]
+        Resource = [aws_ecr_repository.backend.arn]
+      }
+      # {
+      #   Action   = ["ssm:GetParameters"],
+      #   Effect   = "Allow",
+      #   Resource = "arn:aws:ssm:region:account-id:parameter/your_parameter_name"
+      # },
+      # {
+      #   Action   = ["kms:Decrypt"],
+      #   Effect   = "Allow",
+      #   Resource = "arn:aws:kms:region:account-id:key/your-kms-key-id"
+      # }
+    ]
+  })
+}
 
 ################
 # Segurity group
@@ -140,23 +289,45 @@ resource "aws_security_group_rule" "backend_all_egress" {
   cidr_blocks       = ["0.0.0.0/0"]
 }
 
-#################
-# Launch template
-#################
+####################
+# OpenAI GPT API Key
+####################
+# resource "aws_ssm_parameter" "gpt_api_key" {
+#   name        = "/openai/gpt/api-key/"
+#   description = "OpenAI GPT API Key"
+#   type        = "SecureString"
+# }
+
+##############
+# Instance AMI
+##############
 data "aws_ssm_parameter" "amazon_linux_ami" {
   name = "/aws/service/ami-amazon-linux-latest/al2023-ami-minimal-kernel-default-x86_64"
 }
 
+#################
+# Launch template
+#################
 resource "aws_launch_template" "backend" {
-  name = "${local.name_prefix}-backend"
+  name_prefix = "${local.name_prefix}-backend"
 
-  instance_type          = "t2.micro"
-  image_id               = data.aws_ssm_parameter.amazon_linux_ami.value
-  user_data              = base64encode(file("${path.module}/scripts/backend-user-data.sh"))
-  vpc_security_group_ids = [aws_security_group.backend.id]
+  instance_type = "t2.micro"
+  image_id      = data.aws_ssm_parameter.amazon_linux_ami.value
+  user_data     = base64encode(file("${path.module}/scripts/backend-user-data.sh"))
+  # vpc_security_group_ids = [aws_security_group.backend.id]
+  update_default_version = true
+
+  network_interfaces {
+    associate_public_ip_address = true
+    security_groups             = [aws_security_group.backend.id]
+  }
 
   iam_instance_profile {
     name = aws_iam_instance_profile.backend.name
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
@@ -172,51 +343,9 @@ resource "aws_autoscaling_group" "backend" {
 
   launch_template {
     id      = aws_launch_template.backend.id
-    version = "$Latest"
+    version = aws_launch_template.backend.latest_version
   }
 
   vpc_zone_identifier = [for subnet in aws_subnet.public : subnet.id]
   target_group_arns   = [aws_lb_target_group.backend.arn]
-}
-
-##############################
-# Load balancing configuration
-##############################
-
-# Target Group
-resource "aws_lb_target_group" "backend" {
-  name = "${local.name_prefix}-backend"
-
-  protocol = "HTTP"
-  port     = 8000
-  vpc_id   = aws_vpc.main.id
-}
-
-# Route53 API record
-resource "aws_route53_record" "api" {
-  zone_id = module.route53.zone_id
-  name    = "api"
-  type    = "A"
-
-  alias {
-    name                   = aws_lb.lb.dns_name
-    zone_id                = aws_lb.lb.zone_id
-    evaluate_target_health = true
-  }
-}
-
-# ALB listener rule
-resource "aws_lb_listener_rule" "api" {
-  listener_arn = aws_lb_listener.https.arn
-
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.backend.arn
-  }
-
-  condition {
-    host_header {
-      values = [aws_route53_record.api.fqdn]
-    }
-  }
 }

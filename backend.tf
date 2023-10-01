@@ -317,6 +317,8 @@ resource "aws_launch_template" "backend" {
   # vpc_security_group_ids = [aws_security_group.backend.id]
   update_default_version = true
 
+  key_name = "jnonino-pac"
+
   network_interfaces {
     associate_public_ip_address = true
     security_groups             = [aws_security_group.backend.id]
@@ -324,6 +326,13 @@ resource "aws_launch_template" "backend" {
 
   iam_instance_profile {
     name = aws_iam_instance_profile.backend.name
+  }
+
+  block_device_mappings {
+    device_name = "/dev/xvda"
+    ebs {
+      volume_size = 30
+    }
   }
 
   lifecycle {

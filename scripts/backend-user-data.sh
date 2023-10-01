@@ -19,9 +19,8 @@ docker-compose version
 
 # Set environment variables
 cat > /tmp/backend.env <<EOL
-API_KEY=$(echo hola1234)
+API_KEY=$(aws ssm get-parameter --name "OPEN_AI_API_KEY" --with-decryption --query "Parameter.Value" --output text)
 EOL
-# OPENAI_API_KEY=$(aws ssm get-parameter --name "your_parameter_name" --with-decryption --query "Parameter.Value" --output text)
 
 # ECR login
 aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 301634789447.dkr.ecr.us-east-1.amazonaws.com
@@ -96,6 +95,12 @@ services:
       OPENAI_API_KEY: "\${API_KEY}"
       MILVUS_HOST: standalone
       MILVUS_PORT: 19530
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
     ports:
       - "8000:8000"
     depends_on:

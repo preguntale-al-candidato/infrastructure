@@ -205,6 +205,10 @@ resource "aws_iam_instance_profile" "backend" {
   role = aws_iam_role.backend.name
 }
 
+data "aws_kms_alias" "ssm_default" {
+  name = "alias/aws/ssm"
+}
+
 resource "aws_iam_role_policy" "backend" {
   name = "${local.name_prefix}-backend"
   role = aws_iam_role.backend.id
@@ -229,17 +233,17 @@ resource "aws_iam_role_policy" "backend" {
           "ecr:BatchGetImage"
         ]
         Resource = [aws_ecr_repository.backend.arn]
+      },
+      {
+        Action   = ["ssm:GetParameter"],
+        Effect   = "Allow",
+        Resource = "arn:aws:ssm:us-east-1:301634789447:parameter/OPEN_AI_API_KEY"
+      },
+      {
+        Action   = ["kms:Decrypt"],
+        Effect   = "Allow",
+        Resource = data.aws_kms_alias.ssm_default.target_key_arn
       }
-      # {
-      #   Action   = ["ssm:GetParameters"],
-      #   Effect   = "Allow",
-      #   Resource = "arn:aws:ssm:region:account-id:parameter/your_parameter_name"
-      # },
-      # {
-      #   Action   = ["kms:Decrypt"],
-      #   Effect   = "Allow",
-      #   Resource = "arn:aws:kms:region:account-id:key/your-kms-key-id"
-      # }
     ]
   })
 }
@@ -288,15 +292,6 @@ resource "aws_security_group_rule" "backend_all_egress" {
   protocol          = "-1"
   cidr_blocks       = ["0.0.0.0/0"]
 }
-
-####################
-# OpenAI GPT API Key
-####################
-# resource "aws_ssm_parameter" "gpt_api_key" {
-#   name        = "/openai/gpt/api-key/"
-#   description = "OpenAI GPT API Key"
-#   type        = "SecureString"
-# }
 
 ##############
 # Instance AMI

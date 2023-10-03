@@ -32,24 +32,8 @@ resource "aws_iam_user" "website_deployer_user" {
 resource "aws_iam_policy" "website_deployer_policy" {
   name        = "website-deployer"
   description = "Permissions to deploy to the S3 website"
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect   = "Allow"
-        Action   = ["s3:ListBucket"]
-        Resource = [module.website.website_bucket_arn]
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "s3:DeleteObject",
-          "s3:GetObject",
-          "s3:PutObject"
-        ]
-        Resource = ["${module.website.website_bucket_arn}/*"]
-      }
-    ]
+  policy = templatefile("${path.module}/templates/bucket_sync_policy.json", {
+    bucketArn = module.website.website_bucket_arn
   })
 }
 

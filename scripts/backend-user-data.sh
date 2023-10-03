@@ -25,6 +25,7 @@ EOL
 # ECR login
 aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 301634789447.dkr.ecr.us-east-1.amazonaws.com
 
+# Docker compose for backend
 cat > /tmp/docker-compose.yml <<EOL
 version: "3.8"
 
@@ -38,7 +39,7 @@ services:
       - ETCD_QUOTA_BACKEND_BYTES=4294967296
       - ETCD_SNAPSHOT_COUNT=50000
     volumes:
-      - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/etcd:/etcd
+      - /tmp/volumes/etcd:/etcd
     command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
     healthcheck:
       test: ["CMD", "etcdctl", "endpoint", "health"]
@@ -56,7 +57,7 @@ services:
       - "9001:9001"
       - "9000:9000"
     volumes:
-      - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/minio:/minio_data
+      - /tmp/volumes/minio:/minio_data
     command: minio server /minio_data --console-address ":9001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
@@ -72,7 +73,7 @@ services:
       ETCD_ENDPOINTS: etcd:2379
       MINIO_ADDRESS: minio:9000
     volumes:
-      - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/milvus:/var/lib/milvus
+      - /tmp/volumes/milvus:/var/lib/milvus
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
       interval: 30s
@@ -112,4 +113,13 @@ networks:
     name: pac
 EOL
 
+# Pull DB volumes stored in S3
+sudo aws s3 sync s3://milvus-volume /tmp/volumes
+
+# Run services
 sudo docker-compose --project-name pac --env-file /tmp/backend.env --file /tmp/docker-compose.yml up --detach
+
+##########
+# BackupDB
+##########
+# aws s3 sync /tmp/volumes s3://milvus-volume

@@ -248,6 +248,16 @@ resource "aws_iam_role_policy" "backend" {
   })
 }
 
+resource "aws_iam_role_policy_attachment" "transcriptions_backend_policy_attach" {
+  role       = aws_iam_role.backend.name
+  policy_arn = aws_iam_policy.transcriptions_uploader_policy.arn
+}
+
+resource "aws_iam_role_policy_attachment" "milvus_volume_policy_attach" {
+  role       = aws_iam_role.backend.name
+  policy_arn = aws_iam_policy.milvus_volume_policy.arn
+}
+
 ################
 # Segurity group
 ################

@@ -1,6 +1,6 @@
-############
-# S3 Website
-############
+### ==========
+### S3 Website
+### ==========
 module "website" {
   providers = {
     aws.main         = aws
@@ -18,26 +18,4 @@ module "website" {
 
   create_route53_hosted_zone = false
   route53_hosted_zone_id     = module.route53.zone_id
-}
-
-#########################################
-# IAM user to deploy new website versions
-#########################################
-
-resource "aws_iam_user" "website_deployer_user" {
-  name          = "website-deployer"
-  force_destroy = true
-}
-
-resource "aws_iam_policy" "website_deployer_policy" {
-  name        = "website-deployer"
-  description = "Permissions to deploy to the S3 website"
-  policy = templatefile("${path.module}/templates/bucket_sync_policy.json", {
-    bucketArn = module.website.website_bucket_arn
-  })
-}
-
-resource "aws_iam_user_policy_attachment" "website_deployer_policy_attach" {
-  user       = aws_iam_user.website_deployer_user.name
-  policy_arn = aws_iam_policy.website_deployer_policy.arn
 }

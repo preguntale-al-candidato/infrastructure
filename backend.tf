@@ -1,47 +1,6 @@
-#########################################
-# IAM user to deploy new backend versions
-#########################################
-resource "aws_iam_user" "backend_deployer_user" {
-  name          = "backend-deployer"
-  force_destroy = true
-}
-
-resource "aws_iam_policy" "backend_deployer_policy" {
-  name        = "backend-deployer"
-  description = "Permissions to deploy to the Backend ECR repository"
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect   = "Allow"
-        Action   = ["ecr:GetAuthorizationToken"]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "ecr:BatchCheckLayerAvailability",
-          "ecr:BatchGetImage",
-          "ecr:CompleteLayerUpload",
-          "ecr:GetDownloadUrlForLayer",
-          "ecr:InitiateLayerUpload",
-          "ecr:PutImage",
-          "ecr:UploadLayerPart"
-        ]
-        Resource = [aws_ecr_repository.backend.arn]
-      }
-    ]
-  })
-}
-
-resource "aws_iam_user_policy_attachment" "backend_deployer_policy_attach" {
-  user       = aws_iam_user.backend_deployer_user.name
-  policy_arn = aws_iam_policy.backend_deployer_policy.arn
-}
-
-#######################################
-# Elastic Container Registry Repository
-#######################################
+### =====================================
+### Elastic Container Registry Repository
+### =====================================
 resource "aws_ecr_repository" "backend" {
   name = "${local.name_prefix}-backend"
 
@@ -81,10 +40,9 @@ resource "aws_ecr_repository_policy" "backend_deployer_policy" {
   policy     = data.aws_iam_policy_document.backend_deployer_policy.json
 }
 
-
-###############
-# Load Balancer
-###############
+### =============
+### Load Balancer
+### =============
 # Load Balancer security group
 resource "aws_security_group" "lb_sg" {
   name        = "${local.name_prefix}-lb"
@@ -180,9 +138,9 @@ resource "aws_lb_listener_rule" "api" {
   }
 }
 
-####################
-# Backend IAM config
-####################
+### ==================
+### Backend IAM config
+### ==================
 resource "aws_iam_role" "backend" {
   name = "${local.name_prefix}-backend"
 
@@ -258,9 +216,9 @@ resource "aws_iam_role_policy_attachment" "milvus_volume_policy_attach" {
   policy_arn = aws_iam_policy.milvus_volume_policy.arn
 }
 
-################
-# Segurity group
-################
+### ==============
+### Segurity group
+### ==============
 resource "aws_security_group" "backend" {
   name        = "${local.name_prefix}-backend"
   description = "Traffic to and from backend"
@@ -303,16 +261,16 @@ resource "aws_security_group_rule" "backend_all_egress" {
   cidr_blocks       = ["0.0.0.0/0"]
 }
 
-##############
-# Instance AMI
-##############
+### ============
+### Instance AMI
+### ============
 data "aws_ssm_parameter" "amazon_linux_ami" {
   name = "/aws/service/ami-amazon-linux-latest/al2023-ami-minimal-kernel-default-x86_64"
 }
 
-#################
-# Launch template
-#################
+### ===============
+### Launch template
+### ===============
 resource "aws_launch_template" "backend" {
   name_prefix = "${local.name_prefix}-backend"
 
@@ -345,9 +303,9 @@ resource "aws_launch_template" "backend" {
   }
 }
 
-####################
-# Auto Scaling Group
-####################
+### ==================
+### Auto Scaling Group
+### ==================
 resource "aws_autoscaling_group" "backend" {
   name_prefix = local.name_prefix
 

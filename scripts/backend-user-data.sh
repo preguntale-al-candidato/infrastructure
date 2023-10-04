@@ -122,4 +122,4 @@ sudo docker-compose --project-name pac --env-file /tmp/backend.env --file /tmp/d
 ##########
 # BackupDB
 ##########
-# aws s3 sync /tmp/volumes s3://milvus-volume
+# aws s3 sync /tmp/volumes s3://milvus-volume --exclude "etcd/*"

@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Set work dir
+WORK_DIR=/app
+mkdir -p $WORK_DIR
+
 # Update packages
 sudo dnf --assumeyes update
 
@@ -18,7 +22,7 @@ sudo chmod +x /usr/local/bin/docker-compose
 docker-compose version
 
 # Set environment variables
-cat > /tmp/backend.env <<EOL
+cat > $WORK_DIR/backend.env <<EOL
 API_KEY=$(aws ssm get-parameter --name "OPEN_AI_API_KEY" --with-decryption --query "Parameter.Value" --output text)
 EOL
 
@@ -26,7 +30,7 @@ EOL
 aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 301634789447.dkr.ecr.us-east-1.amazonaws.com
 
 # Docker compose for backend
-cat > /tmp/docker-compose.yml <<EOL
+cat > $WORK_DIR/docker-compose.yml <<EOL
 version: "3.8"
 
 services:
@@ -39,7 +43,7 @@ services:
       - ETCD_QUOTA_BACKEND_BYTES=4294967296
       - ETCD_SNAPSHOT_COUNT=50000
     volumes:
-      - /tmp/volumes/etcd:/etcd
+      - $WORK_DIR/volumes/etcd:/etcd
     command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
     healthcheck:
       test: ["CMD", "etcdctl", "endpoint", "health"]
@@ -57,7 +61,7 @@ services:
       - "9001:9001"
       - "9000:9000"
     volumes:
-      - /tmp/volumes/minio:/minio_data
+      - $WORK_DIR/volumes/minio:/minio_data
     command: minio server /minio_data --console-address ":9001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
@@ -73,7 +77,7 @@ services:
       ETCD_ENDPOINTS: etcd:2379
       MINIO_ADDRESS: minio:9000
     volumes:
-      - /tmp/volumes/milvus:/var/lib/milvus
+      - $WORK_DIR/volumes/milvus:/var/lib/milvus
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
       interval: 30s
@@ -114,12 +118,12 @@ networks:
 EOL
 
 # Pull DB volumes stored in S3
-sudo aws s3 sync s3://milvus-volume /tmp/volumes
+sudo aws s3 sync s3://milvus-volume $WORK_DIR/volumes
 
 # Run services
-sudo docker-compose --project-name pac --env-file /tmp/backend.env --file /tmp/docker-compose.yml up --detach
+sudo docker-compose --project-name pac --env-file $WORK_DIR/backend.env --file $WORK_DIR/docker-compose.yml up --detach
 
 ##########
 # BackupDB
 ##########
-# aws s3 sync /tmp/volumes s3://milvus-volume --exclude "etcd/*"
+# aws s3 sync $WORK_DIR/volumes s3://milvus-volume --exclude "etcd/*"

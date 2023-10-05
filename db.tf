@@ -91,12 +91,12 @@ resource "aws_instance" "db" {
   }
 }
 
-resource "aws_route53_record" "db" {
+resource "aws_route53_record" "db_internal" {
   zone_id = module.route53.zone_id
-  name    = "db"
-  type    = "CNAME"
+  name    = "db-internal"
+  type    = "A"
   ttl     = 5
-  records = [aws_instance.db.private_dns]
+  records = [aws_instance.db.private_ip]
 }
 
 resource "aws_route53_record" "db_external" {

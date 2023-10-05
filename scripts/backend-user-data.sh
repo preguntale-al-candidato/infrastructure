@@ -24,7 +24,7 @@ docker-compose version
 # Set environment variables
 cat > $WORK_DIR/backend.env <<EOL
 OPENAI_API_KEY=$(aws ssm get-parameter --name "OPEN_AI_API_KEY" --with-decryption --query "Parameter.Value" --output text)
-MILVUS_HOST=172.16.10.52
+MILVUS_HOST=db-internal.preguntalealcandidato.com
 MILVUS_PORT=19530
 EOL
 

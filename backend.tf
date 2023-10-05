@@ -236,22 +236,7 @@ resource "aws_security_group_rule" "backend_api_from_lb" {
   source_security_group_id = aws_security_group.lb_sg.id
 }
 
-# Backend DB ingress rules from self
-# etcd:   2379
-# minio:  9000 and 9001
-# milvus: 9091 and 19530
-resource "aws_security_group_rule" "backend_db_from_self" {
-  for_each = toset(["2379", "9000", "9001", "9091", "19530"])
-
-  security_group_id = aws_security_group.backend.id
-  type              = "ingress"
-  from_port         = each.value
-  to_port           = each.value
-  protocol          = "tcp"
-  self              = true
-}
-
-# Backend Egress rule
+# Backend egress rule
 resource "aws_security_group_rule" "backend_all_egress" {
   security_group_id = aws_security_group.backend.id
   type              = "egress"
@@ -264,7 +249,7 @@ resource "aws_security_group_rule" "backend_all_egress" {
 ### ============
 ### Instance AMI
 ### ============
-data "aws_ssm_parameter" "amazon_linux_ami" {
+data "aws_ssm_parameter" "backend_amazon_linux_ami" {
   name = "/aws/service/ami-amazon-linux-latest/al2023-ami-minimal-kernel-default-x86_64"
 }
 
@@ -275,7 +260,7 @@ resource "aws_launch_template" "backend" {
   name_prefix = "${local.name_prefix}-backend"
 
   instance_type = "t2.micro"
-  image_id      = data.aws_ssm_parameter.amazon_linux_ami.value
+  image_id      = data.aws_ssm_parameter.backend_amazon_linux_ami.value
   user_data     = base64encode(file("${path.module}/scripts/backend-user-data.sh"))
   # vpc_security_group_ids = [aws_security_group.backend.id]
   update_default_version = true

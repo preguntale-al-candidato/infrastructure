@@ -23,107 +23,13 @@ docker-compose version
 
 # Set environment variables
 cat > $WORK_DIR/backend.env <<EOL
-API_KEY=$(aws ssm get-parameter --name "OPEN_AI_API_KEY" --with-decryption --query "Parameter.Value" --output text)
+OPENAI_API_KEY=$(aws ssm get-parameter --name "OPEN_AI_API_KEY" --with-decryption --query "Parameter.Value" --output text)
+MILVUS_HOST=172.16.10.52
+MILVUS_PORT=19530
 EOL
 
 # ECR login
 aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 301634789447.dkr.ecr.us-east-1.amazonaws.com
 
-# Docker compose for backend
-cat > $WORK_DIR/docker-compose.yml <<EOL
-version: "3.8"
-
-services:
-  etcd:
-    container_name: milvus-etcd
-    image: quay.io/coreos/etcd:v3.5.5
-    environment:
-      - ETCD_AUTO_COMPACTION_MODE=revision
-      - ETCD_AUTO_COMPACTION_RETENTION=1000
-      - ETCD_QUOTA_BACKEND_BYTES=4294967296
-      - ETCD_SNAPSHOT_COUNT=50000
-    volumes:
-      - $WORK_DIR/volumes/etcd:/etcd
-    command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
-    healthcheck:
-      test: ["CMD", "etcdctl", "endpoint", "health"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-
-  minio:
-    container_name: milvus-minio
-    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
-    environment:
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
-    ports:
-      - "9001:9001"
-      - "9000:9000"
-    volumes:
-      - $WORK_DIR/volumes/minio:/minio_data
-    command: minio server /minio_data --console-address ":9001"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-
-  standalone:
-    container_name: milvus-standalone
-    image: milvusdb/milvus:v2.3.1
-    command: ["milvus", "run", "standalone"]
-    environment:
-      ETCD_ENDPOINTS: etcd:2379
-      MINIO_ADDRESS: minio:9000
-    volumes:
-      - $WORK_DIR/volumes/milvus:/var/lib/milvus
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
-      interval: 30s
-      start_period: 90s
-      timeout: 20s
-      retries: 3
-    ports:
-      - "19530:19530"
-      - "9091:9091"
-    depends_on:
-      etcd:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-
-  backend:
-    container_name: backend
-    image: 301634789447.dkr.ecr.us-east-1.amazonaws.com/pac-backend:latest
-    environment:
-      OPENAI_API_KEY: "\${API_KEY}"
-      MILVUS_HOST: standalone
-      MILVUS_PORT: 19530
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      start_period: 90s
-      timeout: 20s
-      retries: 3
-    ports:
-      - "8000:8000"
-    depends_on:
-      standalone:
-        condition: service_healthy
-
-networks:
-  default:
-    name: pac
-EOL
-
-# Pull DB volumes stored in S3
-sudo aws s3 sync s3://milvus-volume $WORK_DIR/volumes
-
-# Run services
-sudo docker-compose --project-name pac --env-file $WORK_DIR/backend.env --file $WORK_DIR/docker-compose.yml up --detach
-
-##########
-# BackupDB
-##########
-# aws s3 sync $WORK_DIR/volumes s3://milvus-volume --exclude "etcd/*"
+# Run backend
+sudo docker run -d --name backend --env-file $WORK_DIR/backend.env -p 8000:8000 --restart=unless-stopped 301634789447.dkr.ecr.us-east-1.amazonaws.com/pac-backend:latest

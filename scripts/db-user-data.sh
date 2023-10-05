@@ -94,7 +94,7 @@ EOL
 sudo aws s3 sync s3://milvus-volume $WORK_DIR/volumes
 
 # Run services
-# sudo docker-compose --project-name pac --file $WORK_DIR/docker-compose.yml up --detach
+sudo docker-compose --project-name pac --file $WORK_DIR/docker-compose.yml up --detach
 
 ##########
 # BackupDB

@@ -276,12 +276,12 @@ resource "aws_launch_template" "backend" {
     name = aws_iam_instance_profile.backend.name
   }
 
-  block_device_mappings {
-    device_name = "/dev/xvda"
-    ebs {
-      volume_size = 30
-    }
-  }
+  # block_device_mappings {
+  #   device_name = "/dev/xvda"
+  #   ebs {
+  #     volume_size = 30
+  #   }
+  # }
 
   lifecycle {
     create_before_destroy = true

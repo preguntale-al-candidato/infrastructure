@@ -32,6 +32,36 @@ resource "aws_security_group_rule" "db_all_egress" {
   cidr_blocks       = ["0.0.0.0/0"]
 }
 
+### =============
+### DB IAM config
+### =============
+resource "aws_iam_role" "db" {
+  name = "${local.name_prefix}-db"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action = "sts:AssumeRole",
+        Effect = "Allow",
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_instance_profile" "db" {
+  name = "${local.name_prefix}-db"
+  role = aws_iam_role.db.name
+}
+
+resource "aws_iam_role_policy_attachment" "milvus_volume_db_policy_attach" {
+  role       = aws_iam_role.db.name
+  policy_arn = aws_iam_policy.milvus_volume_policy.arn
+}
+
 ### ============
 ### Instance AMI
 ### ============
@@ -45,14 +75,19 @@ data "aws_ssm_parameter" "db_amazon_linux_ami" {
 
 resource "aws_instance" "db" {
   ami                         = data.aws_ssm_parameter.db_amazon_linux_ami.value
-  instance_type               = "t4g.medium"
+  instance_type               = "t3a.small"
   associate_public_ip_address = true
   key_name                    = "jnonino-pac"
-  security_groups             = [aws_security_group.db.id]
+  vpc_security_group_ids      = [aws_security_group.db.id]
+  iam_instance_profile        = aws_iam_instance_profile.db.name
   user_data                   = base64encode(file("${path.module}/scripts/db-user-data.sh"))
+  subnet_id                   = values(aws_subnet.public)[0].id
   root_block_device {
     volume_size           = "30"
     delete_on_termination = true
+  }
+  tags = {
+    Name = "${local.name_prefix}-db"
   }
 }
 
@@ -67,7 +102,7 @@ resource "aws_route53_record" "db" {
 resource "aws_route53_record" "db_external" {
   zone_id = module.route53.zone_id
   name    = "db-external"
-  type    = "CNAME"
+  type    = "A"
   ttl     = 5
-  records = [aws_instance.db.public_dns]
+  records = [aws_instance.db.public_ip]
 }

@@ -61,5 +61,13 @@ resource "aws_route53_record" "db" {
   name    = "db"
   type    = "CNAME"
   ttl     = 5
-  records = [aws_instance.db  ]
+  records = [aws_instance.db.private_dns]
+}
+
+resource "aws_route53_record" "db_external" {
+  zone_id = module.route53.zone_id
+  name    = "db-external"
+  type    = "CNAME"
+  ttl     = 5
+  records = [aws_instance.db.public_dns]
 }

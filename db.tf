@@ -66,16 +66,15 @@ resource "aws_iam_role_policy_attachment" "milvus_volume_db_policy_attach" {
 ### Instance AMI
 ### ============
 data "aws_ssm_parameter" "db_amazon_linux_ami" {
-  name = "/aws/service/ami-amazon-linux-latest/al2023-ami-minimal-kernel-default-x86_64"
+  name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64"
 }
 
 ### ===========
 ### DB instance
 ### ===========
-
 resource "aws_instance" "db" {
   ami                         = data.aws_ssm_parameter.db_amazon_linux_ami.value
-  instance_type               = "t3a.small"
+  instance_type               = "t4g.small"
   associate_public_ip_address = true
   key_name                    = "jnonino-pac"
   vpc_security_group_ids      = [aws_security_group.db.id]

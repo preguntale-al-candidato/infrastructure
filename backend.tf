@@ -91,7 +91,7 @@ resource "aws_ecs_cluster" "backend" {
 }
 
 resource "aws_ecs_cluster_capacity_providers" "backend" {
-  cluster_name = aws_ecs_cluster.backend.name
+  cluster_name       = aws_ecs_cluster.backend.name
   capacity_providers = [aws_ecs_capacity_provider.backend.name]
 }
 
@@ -183,6 +183,7 @@ module "autoscaling" {
   min_size          = 1
   max_size          = 1
   desired_capacity  = 1
+  enable_monitoring = false
 
   # https://github.com/hashicorp/terraform-provider-aws/issues/12582
   autoscaling_group_tags = {

@@ -1,47 +1,6 @@
-#########################################
-# IAM user to deploy new backend versions
-#########################################
-resource "aws_iam_user" "backend_deployer_user" {
-  name          = "backend-deployer"
-  force_destroy = true
-}
-
-resource "aws_iam_policy" "backend_deployer_policy" {
-  name        = "backend-deployer"
-  description = "Permissions to deploy to the Backend ECR repository"
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect   = "Allow"
-        Action   = ["ecr:GetAuthorizationToken"]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "ecr:BatchCheckLayerAvailability",
-          "ecr:BatchGetImage",
-          "ecr:CompleteLayerUpload",
-          "ecr:GetDownloadUrlForLayer",
-          "ecr:InitiateLayerUpload",
-          "ecr:PutImage",
-          "ecr:UploadLayerPart"
-        ]
-        Resource = [aws_ecr_repository.backend.arn]
-      }
-    ]
-  })
-}
-
-resource "aws_iam_user_policy_attachment" "backend_deployer_policy_attach" {
-  user       = aws_iam_user.backend_deployer_user.name
-  policy_arn = aws_iam_policy.backend_deployer_policy.arn
-}
-
-#######################################
-# Elastic Container Registry Repository
-#######################################
+### =====================================
+### Elastic Container Registry Repository
+### =====================================
 resource "aws_ecr_repository" "backend" {
   name = "${local.name_prefix}-backend"
 
@@ -81,10 +40,9 @@ resource "aws_ecr_repository_policy" "backend_deployer_policy" {
   policy     = data.aws_iam_policy_document.backend_deployer_policy.json
 }
 
-
-###############
-# Load Balancer
-###############
+### =============
+### Load Balancer
+### =============
 # Load Balancer security group
 resource "aws_security_group" "lb_sg" {
   name        = "${local.name_prefix}-lb"
@@ -180,9 +138,9 @@ resource "aws_lb_listener_rule" "api" {
   }
 }
 
-####################
-# Backend IAM config
-####################
+### ==================
+### Backend IAM config
+### ==================
 resource "aws_iam_role" "backend" {
   name = "${local.name_prefix}-backend"
 
@@ -258,9 +216,9 @@ resource "aws_iam_role_policy_attachment" "milvus_volume_policy_attach" {
   policy_arn = aws_iam_policy.milvus_volume_policy.arn
 }
 
-################
-# Segurity group
-################
+### ==============
+### Segurity group
+### ==============
 resource "aws_security_group" "backend" {
   name        = "${local.name_prefix}-backend"
   description = "Traffic to and from backend"
@@ -278,22 +236,7 @@ resource "aws_security_group_rule" "backend_api_from_lb" {
   source_security_group_id = aws_security_group.lb_sg.id
 }
 
-# Backend DB ingress rules from self
-# etcd:   2379
-# minio:  9000 and 9001
-# milvus: 9091 and 19530
-resource "aws_security_group_rule" "backend_db_from_self" {
-  for_each = toset(["2379", "9000", "9001", "9091", "19530"])
-
-  security_group_id = aws_security_group.backend.id
-  type              = "ingress"
-  from_port         = each.value
-  to_port           = each.value
-  protocol          = "tcp"
-  self              = true
-}
-
-# Backend Egress rule
+# Backend egress rule
 resource "aws_security_group_rule" "backend_all_egress" {
   security_group_id = aws_security_group.backend.id
   type              = "egress"
@@ -303,21 +246,21 @@ resource "aws_security_group_rule" "backend_all_egress" {
   cidr_blocks       = ["0.0.0.0/0"]
 }
 
-##############
-# Instance AMI
-##############
-data "aws_ssm_parameter" "amazon_linux_ami" {
+### ============
+### Instance AMI
+### ============
+data "aws_ssm_parameter" "backend_amazon_linux_ami" {
   name = "/aws/service/ami-amazon-linux-latest/al2023-ami-minimal-kernel-default-x86_64"
 }
 
-#################
-# Launch template
-#################
+### ===============
+### Launch template
+### ===============
 resource "aws_launch_template" "backend" {
   name_prefix = "${local.name_prefix}-backend"
 
   instance_type = "t2.micro"
-  image_id      = data.aws_ssm_parameter.amazon_linux_ami.value
+  image_id      = data.aws_ssm_parameter.backend_amazon_linux_ami.value
   user_data     = base64encode(file("${path.module}/scripts/backend-user-data.sh"))
   # vpc_security_group_ids = [aws_security_group.backend.id]
   update_default_version = true
@@ -333,21 +276,21 @@ resource "aws_launch_template" "backend" {
     name = aws_iam_instance_profile.backend.name
   }
 
-  block_device_mappings {
-    device_name = "/dev/xvda"
-    ebs {
-      volume_size = 30
-    }
-  }
+  # block_device_mappings {
+  #   device_name = "/dev/xvda"
+  #   ebs {
+  #     volume_size = 30
+  #   }
+  # }
 
   lifecycle {
     create_before_destroy = true
   }
 }
 
-####################
-# Auto Scaling Group
-####################
+### ==================
+### Auto Scaling Group
+### ==================
 resource "aws_autoscaling_group" "backend" {
   name_prefix = local.name_prefix
 

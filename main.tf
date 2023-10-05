@@ -1,21 +1,20 @@
-#####
-# VPC
-#####
+### ===
+### VPC
+### ===
 resource "aws_vpc" "main" {
   cidr_block = local.vpc_cidr_block
 }
 
-##################
-# Internet gateway
-##################
+### ================
+### Internet gateway
+### ================
 resource "aws_internet_gateway" "internet_gw" {
   vpc_id = aws_vpc.main.id
 }
 
-################
-# Public subnets
-################
-
+### ==============
+### Public subnets
+### ==============
 # Subnets
 resource "aws_subnet" "public" {
   for_each = local.public_subnets
@@ -60,10 +59,9 @@ resource "aws_route_table_association" "public" {
 #   subnet_id     = values(aws_subnet.public)[0].id
 # }
 
-#################
-# Private subnets
-#################
-
+### ===============
+### Private subnets
+### ===============
 # Subnets
 resource "aws_subnet" "private" {
   for_each = local.private_subnets
@@ -97,9 +95,9 @@ resource "aws_route_table_association" "private" {
   route_table_id = aws_route_table.private.id
 }
 
-#########
-# Route53
-#########
+### =======
+### Route53
+### =======
 module "route53" {
   source  = "cn-terraform/route53/aws"
   version = "0.0.1"
@@ -109,9 +107,9 @@ module "route53" {
   records            = {}
 }
 
-#################
-# ACM Certificate
-#################
+### ===============
+### ACM Certificate
+### ===============
 resource "aws_acm_certificate" "cert" {
   domain_name               = "*.${local.domain_name}"
   subject_alternative_names = [local.domain_name]

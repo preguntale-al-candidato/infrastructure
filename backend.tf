@@ -1,45 +1,3 @@
-### =====================================
-### Elastic Container Registry Repository
-### =====================================
-resource "aws_ecr_repository" "backend" {
-  name = "${local.name_prefix}-backend"
-
-  force_delete = true # If true, will delete the repository even if it contains images. Defaults to false.
-
-  image_scanning_configuration {
-    scan_on_push = false
-  }
-}
-
-data "aws_iam_policy_document" "backend_deployer_policy" {
-  statement {
-    sid    = "Permissions to deploy to the ECR repository"
-    effect = "Allow"
-
-    principals {
-      type = "AWS"
-      identifiers = [
-        aws_iam_user.backend_deployer_user.arn
-      ]
-    }
-
-    actions = [
-      "ecr:BatchGetImage",
-      "ecr:BatchCheckLayerAvailability",
-      "ecr:CompleteLayerUpload",
-      "ecr:GetDownloadUrlForLayer",
-      "ecr:InitiateLayerUpload",
-      "ecr:PutImage",
-      "ecr:UploadLayerPart",
-    ]
-  }
-}
-
-resource "aws_ecr_repository_policy" "backend_deployer_policy" {
-  repository = aws_ecr_repository.backend.name
-  policy     = data.aws_iam_policy_document.backend_deployer_policy.json
-}
-
 ### =============
 ### Load Balancer
 ### =============
@@ -90,24 +48,29 @@ resource "aws_ecs_cluster" "backend" {
   name = "${local.name_prefix}-backend"
 }
 
-resource "aws_ecs_cluster_capacity_providers" "backend" {
-  cluster_name       = aws_ecs_cluster.backend.name
-  capacity_providers = [aws_ecs_capacity_provider.backend.name]
-}
-
 resource "aws_ecs_capacity_provider" "backend" {
-  name = "${local.name_prefix}-backend"
+  name = aws_ecs_cluster.backend.name
 
   auto_scaling_group_provider {
     auto_scaling_group_arn         = module.autoscaling.autoscaling_group_arn
     managed_termination_protection = "ENABLED"
 
     managed_scaling {
+      status                    = "ENABLED"
       maximum_scaling_step_size = 1
       minimum_scaling_step_size = 1
-      status                    = "DISABLED"
       target_capacity           = 1
     }
+  }
+}
+
+resource "aws_ecs_cluster_capacity_providers" "backend" {
+  cluster_name       = aws_ecs_cluster.backend.name
+  capacity_providers = [aws_ecs_capacity_provider.backend.name]
+  default_capacity_provider_strategy {
+    base              = 1
+    weight            = 100
+    capacity_provider = aws_ecs_capacity_provider.backend.name
   }
 }
 
@@ -115,23 +78,11 @@ resource "aws_ecs_capacity_provider" "backend" {
 ### Segurity group
 ### ==============
 resource "aws_security_group" "backend_ecs_asg" {
-  name        = "${local.name_prefix}-backend-ecs-asg"
+  name        = "${aws_ecs_cluster.backend.name}-ecs-asg"
   description = "Traffic to and from backend ECS ASG"
   vpc_id      = aws_vpc.main.id
 }
 
-# Backend API ingress rule from LB
-resource "aws_security_group_rule" "backend_ecs_asg_api_from_lb" {
-  security_group_id = aws_security_group.backend_ecs_asg.id
-
-  type                     = "ingress"
-  from_port                = 8000
-  to_port                  = 8000
-  protocol                 = "tcp"
-  source_security_group_id = aws_security_group.lb_sg.id
-}
-
-# Backend egress rule
 resource "aws_security_group_rule" "backend_ecs_asg_all_egress" {
   security_group_id = aws_security_group.backend_ecs_asg.id
   type              = "egress"
@@ -155,21 +106,26 @@ module "autoscaling" {
   source  = "terraform-aws-modules/autoscaling/aws"
   version = "~> 6.5"
 
-  name          = "${local.name_prefix}-backend-ecs"
+  name          = "${aws_ecs_cluster.backend.name}-ecs"
   instance_type = "t2.micro"
   image_id      = jsondecode(data.aws_ssm_parameter.backend_ecs_optimized_ami.value)["image_id"]
   user_data = base64encode(<<-EOT
     #!/bin/bash
     cat <<'EOF' >> /etc/ecs/ecs.config
     ECS_CLUSTER=${aws_ecs_cluster.backend.name}
-    ECS_LOGLEVEL=debug
-    ECS_ENABLE_TASK_IAM_ROLE=true
     EOF
   EOT
   )
 
+  key_name            = "jnonino-pac"
   security_groups     = [aws_security_group.backend_ecs_asg.id]
-  vpc_zone_identifier = [for k, v in aws_subnet.private : aws_subnet.private[k].id]
+  vpc_zone_identifier = [for k, v in aws_subnet.public : aws_subnet.public[k].id]
+  network_interfaces = [
+    {
+      associate_public_ip_address = true
+      security_groups             = [aws_security_group.backend.id]
+    }
+  ]
 
   create_iam_instance_profile = true
   iam_role_name               = "${local.name_prefix}-backend-ecs"
@@ -184,6 +140,9 @@ module "autoscaling" {
   max_size          = 1
   desired_capacity  = 1
   enable_monitoring = false
+
+  # Required for  managed_termination_protection = "ENABLED"
+  protect_from_scale_in = true
 
   # https://github.com/hashicorp/terraform-provider-aws/issues/12582
   autoscaling_group_tags = {

@@ -1,3 +1,5 @@
+data "aws_region" "current" {}
+
 ### =====================================
 ### Elastic Container Registry Repository
 ### =====================================
@@ -52,6 +54,18 @@ resource "aws_security_group_rule" "backend_ecs_asg_api_from_lb" {
   to_port                  = 8000
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.lb_sg.id
+}
+
+### ==========
+### Cloudwatch
+### ==========
+module "aws_cw_logs" {
+  source  = "cn-terraform/cloudwatch-logs/aws"
+  version = "1.0.12"
+
+  create_kms_key              = false
+  log_group_retention_in_days = 1
+  logs_path                   = "/ecs/service/${aws_ecs_cluster.backend.name}-api"
 }
 
 ### ===============
@@ -109,13 +123,21 @@ resource "aws_iam_role_policy" "backend_api_task_execution_policy" {
       },
       {
         Effect   = "Allow",
-        Action   = ["ssm:GetParameter"],
+        Action   = ["ssm:GetParameter", "ssm:GetParameters"],
         Resource = data.aws_ssm_parameter.openai_api_key.arn
       },
       {
         Effect   = "Allow",
         Action   = ["kms:Decrypt"],
         Resource = data.aws_kms_alias.ssm_default.target_key_arn
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = "*"
       }
     ]
   })
@@ -157,9 +179,16 @@ resource "aws_ecs_task_definition" "backend_api" {
           hostPort      = 8000
         }
       ]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = module.aws_cw_logs.logs_path
+          "awslogs-stream-prefix" = "ecs"
+          "awslogs-region"        = data.aws_region.current.name
+        }
+      }
     }
   ])
-
 }
 
 ### ===========
@@ -180,11 +209,19 @@ resource "aws_ecs_service" "backend_api" {
   #   field = "cpu"
   # }
 
-  # load_balancer {
-  #   target_group_arn = aws_lb_target_group.foo.arn
-  #   container_name   = "mongo"
-  #   container_port   = 8080
-  # }
+  capacity_provider_strategy {
+    base              = 1
+    capacity_provider = aws_ecs_capacity_provider.backend.name
+    weight            = 100
+  }
+
+  health_check_grace_period_seconds = 600
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.backend.arn
+    container_name   = "${local.name_prefix}-backend-api"
+    container_port   = 8000
+  }
 
   # placement_constraints {
   #   type       = "memberOf"

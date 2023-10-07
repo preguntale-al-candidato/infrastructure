@@ -22,6 +22,17 @@ resource "aws_security_group_rule" "db_from_backend_api" {
   source_security_group_id = aws_security_group.backend.id
 }
 
+resource "aws_security_group_rule" "db_from_backend_api_ecs" {
+  for_each = toset(["2379", "9000", "9001", "9091", "19530"])
+
+  security_group_id        = aws_security_group.db.id
+  type                     = "ingress"
+  from_port                = each.value
+  to_port                  = each.value
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.backend_ecs_asg.id
+}
+
 # DB egress rule
 resource "aws_security_group_rule" "db_all_egress" {
   security_group_id = aws_security_group.db.id

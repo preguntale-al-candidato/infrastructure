@@ -1,5 +1,3 @@
-data "aws_region" "current" {}
-
 ### =====================================
 ### Elastic Container Registry Repository
 ### =====================================
@@ -201,13 +199,6 @@ resource "aws_ecs_service" "backend_api" {
   desired_count                      = 1
   deployment_maximum_percent         = 200
   deployment_minimum_healthy_percent = 100
-  # iam_role        = aws_iam_role.foo.arn
-  # depends_on      = [aws_iam_role_policy.foo]
-
-  # ordered_placement_strategy {
-  #   type  = "binpack"
-  #   field = "cpu"
-  # }
 
   capacity_provider_strategy {
     base              = 1
@@ -222,9 +213,4 @@ resource "aws_ecs_service" "backend_api" {
     container_name   = "${local.name_prefix}-backend-api"
     container_port   = 8000
   }
-
-  # placement_constraints {
-  #   type       = "memberOf"
-  #   expression = "attribute:ecs.availability-zone in [us-west-2a, us-west-2b]"
-  # }
 }

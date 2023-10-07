@@ -187,7 +187,7 @@ module "autoscaling" {
   network_interfaces = [
     {
       associate_public_ip_address = true
-      security_groups             = [aws_security_group.backend.id]
+      security_groups             = [aws_security_group.backend_ecs_asg.id]
     }
   ]
 
@@ -197,25 +197,6 @@ module "autoscaling" {
   iam_role_policies = {
     AmazonEC2ContainerServiceforEC2Role = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
     AmazonSSMManagedInstanceCore        = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-
-    # {
-    #     Effect   = "Allow"
-    #     Action   = ["ecr:GetAuthorizationToken"]
-    #     Resource = "*"
-    #   },
-    #   {
-    #     Effect = "Allow"
-    #     Action = [
-    #       "ecr:BatchCheckLayerAvailability",
-    #       "ecr:GetDownloadUrlForLayer",
-    #       "ecr:GetRepositoryPolicy",
-    #       "ecr:DescribeRepositories",
-    #       "ecr:ListImages",
-    #       "ecr:DescribeImages",
-    #       "ecr:BatchGetImage"
-    #     ]
-    #     Resource = [aws_ecr_repository.backend.arn]
-    #   },
   }
 
   health_check_type = "EC2"

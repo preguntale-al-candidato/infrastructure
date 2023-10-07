@@ -1,3 +1,12 @@
+### ====
+### Data
+### ====
+data "aws_region" "current" {}
+
+data "aws_kms_alias" "ssm_default" {
+  name = "alias/aws/ssm"
+}
+
 ### ======
 ### Locals
 ### ======

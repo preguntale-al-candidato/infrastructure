@@ -11,16 +11,16 @@ resource "aws_security_group" "db" {
 # etcd:   2379
 # minio:  9000 and 9001
 # milvus: 9091 and 19530
-resource "aws_security_group_rule" "db_from_backend_api" {
-  for_each = toset(["2379", "9000", "9001", "9091", "19530"])
+# resource "aws_security_group_rule" "db_from_backend_api" {
+#   for_each = toset(["2379", "9000", "9001", "9091", "19530"])
 
-  security_group_id        = aws_security_group.db.id
-  type                     = "ingress"
-  from_port                = each.value
-  to_port                  = each.value
-  protocol                 = "tcp"
-  source_security_group_id = aws_security_group.backend.id
-}
+#   security_group_id        = aws_security_group.db.id
+#   type                     = "ingress"
+#   from_port                = each.value
+#   to_port                  = each.value
+#   protocol                 = "tcp"
+#   source_security_group_id = aws_security_group.backend.id
+# }
 
 resource "aws_security_group_rule" "db_from_backend_api_ecs" {
   for_each = toset(["2379", "9000", "9001", "9091", "19530"])

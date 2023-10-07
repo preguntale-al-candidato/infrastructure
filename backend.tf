@@ -1,45 +1,3 @@
-### =====================================
-### Elastic Container Registry Repository
-### =====================================
-resource "aws_ecr_repository" "backend" {
-  name = "${local.name_prefix}-backend"
-
-  force_delete = true # If true, will delete the repository even if it contains images. Defaults to false.
-
-  image_scanning_configuration {
-    scan_on_push = false
-  }
-}
-
-data "aws_iam_policy_document" "backend_deployer_policy" {
-  statement {
-    sid    = "Permissions to deploy to the ECR repository"
-    effect = "Allow"
-
-    principals {
-      type = "AWS"
-      identifiers = [
-        aws_iam_user.backend_deployer_user.arn
-      ]
-    }
-
-    actions = [
-      "ecr:BatchGetImage",
-      "ecr:BatchCheckLayerAvailability",
-      "ecr:CompleteLayerUpload",
-      "ecr:GetDownloadUrlForLayer",
-      "ecr:InitiateLayerUpload",
-      "ecr:PutImage",
-      "ecr:UploadLayerPart",
-    ]
-  }
-}
-
-resource "aws_ecr_repository_policy" "backend_deployer_policy" {
-  repository = aws_ecr_repository.backend.name
-  policy     = data.aws_iam_policy_document.backend_deployer_policy.json
-}
-
 ### =============
 ### Load Balancer
 ### =============
@@ -120,6 +78,15 @@ resource "aws_lb_target_group" "backend" {
   protocol = "HTTP"
   port     = 8000
   vpc_id   = aws_vpc.main.id
+
+  health_check {
+    enabled             = true
+    healthy_threshold   = 3
+    interval            = 300
+    unhealthy_threshold = 3
+    path                = "/health"
+    matcher             = "200"
+  }
 }
 
 # ALB listener rule
@@ -138,107 +105,50 @@ resource "aws_lb_listener_rule" "api" {
   }
 }
 
-### ==================
-### Backend IAM config
-### ==================
-resource "aws_iam_role" "backend" {
+### ===========
+### ECS Cluster
+### ===========
+resource "aws_ecs_cluster" "backend" {
   name = "${local.name_prefix}-backend"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Action = "sts:AssumeRole",
-        Effect = "Allow",
-        Principal = {
-          Service = "ec2.amazonaws.com"
-        }
-      }
-    ]
-  })
 }
 
-resource "aws_iam_instance_profile" "backend" {
-  name = "${local.name_prefix}-backend"
-  role = aws_iam_role.backend.name
+resource "aws_ecs_capacity_provider" "backend" {
+  name = aws_ecs_cluster.backend.name
+
+  auto_scaling_group_provider {
+    auto_scaling_group_arn         = module.autoscaling.autoscaling_group_arn
+    managed_termination_protection = "ENABLED"
+
+    managed_scaling {
+      status                    = "ENABLED"
+      maximum_scaling_step_size = 1
+      minimum_scaling_step_size = 1
+      target_capacity           = 1
+    }
+  }
 }
 
-data "aws_kms_alias" "ssm_default" {
-  name = "alias/aws/ssm"
-}
-
-resource "aws_iam_role_policy" "backend" {
-  name = "${local.name_prefix}-backend"
-  role = aws_iam_role.backend.id
-
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Action   = ["ecr:GetAuthorizationToken"]
-        Effect   = "Allow"
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "ecr:BatchCheckLayerAvailability",
-          "ecr:GetDownloadUrlForLayer",
-          "ecr:GetRepositoryPolicy",
-          "ecr:DescribeRepositories",
-          "ecr:ListImages",
-          "ecr:DescribeImages",
-          "ecr:BatchGetImage"
-        ]
-        Resource = [aws_ecr_repository.backend.arn]
-      },
-      {
-        Action   = ["ssm:GetParameter"],
-        Effect   = "Allow",
-        Resource = "arn:aws:ssm:us-east-1:301634789447:parameter/OPEN_AI_API_KEY"
-      },
-      {
-        Action   = ["kms:Decrypt"],
-        Effect   = "Allow",
-        Resource = data.aws_kms_alias.ssm_default.target_key_arn
-      }
-    ]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "transcriptions_backend_policy_attach" {
-  role       = aws_iam_role.backend.name
-  policy_arn = aws_iam_policy.transcriptions_uploader_policy.arn
-}
-
-resource "aws_iam_role_policy_attachment" "milvus_volume_policy_attach" {
-  role       = aws_iam_role.backend.name
-  policy_arn = aws_iam_policy.milvus_volume_policy.arn
+resource "aws_ecs_cluster_capacity_providers" "backend" {
+  cluster_name       = aws_ecs_cluster.backend.name
+  capacity_providers = [aws_ecs_capacity_provider.backend.name]
+  default_capacity_provider_strategy {
+    base              = 1
+    weight            = 100
+    capacity_provider = aws_ecs_capacity_provider.backend.name
+  }
 }
 
 ### ==============
 ### Segurity group
 ### ==============
-resource "aws_security_group" "backend" {
-  name        = "${local.name_prefix}-backend"
-  description = "Traffic to and from backend"
+resource "aws_security_group" "backend_ecs_asg" {
+  name        = "${aws_ecs_cluster.backend.name}-ecs-asg"
+  description = "Traffic to and from backend ECS ASG"
   vpc_id      = aws_vpc.main.id
 }
 
-# Backend API ingress rule from LB
-resource "aws_security_group_rule" "backend_api_from_lb" {
-  security_group_id = aws_security_group.backend.id
-
-  type                     = "ingress"
-  from_port                = 8000
-  to_port                  = 8000
-  protocol                 = "tcp"
-  source_security_group_id = aws_security_group.lb_sg.id
-}
-
-# Backend egress rule
-resource "aws_security_group_rule" "backend_all_egress" {
-  security_group_id = aws_security_group.backend.id
+resource "aws_security_group_rule" "backend_ecs_asg_all_egress" {
+  security_group_id = aws_security_group.backend_ecs_asg.id
   type              = "egress"
   from_port         = 0
   to_port           = 0
@@ -246,63 +156,60 @@ resource "aws_security_group_rule" "backend_all_egress" {
   cidr_blocks       = ["0.0.0.0/0"]
 }
 
-### ============
-### Instance AMI
-### ============
-data "aws_ssm_parameter" "backend_amazon_linux_ami" {
-  name = "/aws/service/ami-amazon-linux-latest/al2023-ami-minimal-kernel-default-x86_64"
+### ===============
+### Autoscaling ECS
+### ===============
+
+# ECS Optimized AMI
+# https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI.html
+data "aws_ssm_parameter" "backend_ecs_optimized_ami" {
+  name = "/aws/service/ecs/optimized-ami/amazon-linux-2023/recommended"
 }
 
-### ===============
-### Launch template
-### ===============
-resource "aws_launch_template" "backend" {
-  name_prefix = "${local.name_prefix}-backend"
+module "autoscaling" {
+  source  = "terraform-aws-modules/autoscaling/aws"
+  version = "~> 6.5"
 
+  name          = "${aws_ecs_cluster.backend.name}-ecs"
   instance_type = "t2.micro"
-  image_id      = data.aws_ssm_parameter.backend_amazon_linux_ami.value
-  user_data     = base64encode(file("${path.module}/scripts/backend-user-data.sh"))
-  # vpc_security_group_ids = [aws_security_group.backend.id]
-  update_default_version = true
+  image_id      = jsondecode(data.aws_ssm_parameter.backend_ecs_optimized_ami.value)["image_id"]
+  user_data = base64encode(<<-EOT
+    #!/bin/bash
+    cat <<'EOF' >> /etc/ecs/ecs.config
+    ECS_CLUSTER=${aws_ecs_cluster.backend.name}
+    EOF
+  EOT
+  )
 
-  key_name = "jnonino-pac"
+  key_name            = "jnonino-pac"
+  security_groups     = [aws_security_group.backend_ecs_asg.id]
+  vpc_zone_identifier = [for k, v in aws_subnet.public : aws_subnet.public[k].id]
+  network_interfaces = [
+    {
+      associate_public_ip_address = true
+      security_groups             = [aws_security_group.backend_ecs_asg.id]
+    }
+  ]
 
-  network_interfaces {
-    associate_public_ip_address = true
-    security_groups             = [aws_security_group.backend.id]
+  create_iam_instance_profile = true
+  iam_role_name               = "${local.name_prefix}-backend-ecs"
+  iam_role_description        = "ECS role for ${aws_ecs_cluster.backend.name}"
+  iam_role_policies = {
+    AmazonEC2ContainerServiceforEC2Role = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
+    AmazonSSMManagedInstanceCore        = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
   }
 
-  iam_instance_profile {
-    name = aws_iam_instance_profile.backend.name
+  health_check_type = "EC2"
+  min_size          = 1
+  max_size          = 1
+  desired_capacity  = 1
+  enable_monitoring = false
+
+  # Required for  managed_termination_protection = "ENABLED"
+  protect_from_scale_in = true
+
+  # https://github.com/hashicorp/terraform-provider-aws/issues/12582
+  autoscaling_group_tags = {
+    AmazonECSManaged = true
   }
-
-  # block_device_mappings {
-  #   device_name = "/dev/xvda"
-  #   ebs {
-  #     volume_size = 30
-  #   }
-  # }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-### ==================
-### Auto Scaling Group
-### ==================
-resource "aws_autoscaling_group" "backend" {
-  name_prefix = local.name_prefix
-
-  min_size         = 1
-  max_size         = 1
-  desired_capacity = 1
-
-  launch_template {
-    id      = aws_launch_template.backend.id
-    version = aws_launch_template.backend.latest_version
-  }
-
-  vpc_zone_identifier = [for subnet in aws_subnet.public : subnet.id]
-  target_group_arns   = [aws_lb_target_group.backend.arn]
 }

@@ -168,7 +168,7 @@ data "aws_ssm_parameter" "backend_ecs_optimized_ami" {
 
 module "autoscaling" {
   source  = "terraform-aws-modules/autoscaling/aws"
-  version = "~> 6.5"
+  version = "~> 7.0"
 
   name          = "${aws_ecs_cluster.backend.name}-ecs"
   instance_type = "t2.micro"

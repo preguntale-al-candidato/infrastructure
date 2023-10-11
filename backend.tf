@@ -201,11 +201,11 @@ module "autoscaling" {
 
   health_check_type = "EC2"
   min_size          = 1
-  max_size          = 1
+  max_size          = 3
   desired_capacity  = 1
   enable_monitoring = false
 
-  # Required for  managed_termination_protection = "ENABLED"
+  # Required for managed_termination_protection = "ENABLED"
   protect_from_scale_in = true
 
   # https://github.com/hashicorp/terraform-provider-aws/issues/12582

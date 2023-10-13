@@ -79,6 +79,10 @@ services:
     ports:
       - "19530:19530"
       - "9091:9091"
+    deploy:
+      restart_policy:
+          condition: any
+          window: 120s
     depends_on:
       etcd:
         condition: service_healthy
@@ -100,3 +104,30 @@ sudo docker-compose --project-name pac --file $WORK_DIR/docker-compose.yml up --
 # BackupDB
 ##########
 # aws s3 sync $WORK_DIR/volumes s3://milvus-volume
+
+sudo bash -c 'cat > /etc/systemd/system/db-backup.timer <<EOL
+[Unit]
+Description=Milvus Backup Timer
+
+[Timer]
+OnCalendar=hourly
+Persistent=false
+
+[Install]
+WantedBy=timers.target
+EOL'
+
+sudo bash -c 'cat > /etc/systemd/system/db-backup.service <<EOL
+[Unit]
+Description=Milvus Backup Timer Service
+
+[Service]
+ExecStart=aws s3 sync /app-db/volumes s3://milvus-volume
+EOL'
+
+sudo systemctl enable db-backup.timer
+sudo systemctl start db-backup.timer
+sudo systemctl daemon-reload
+
+# Check Timer Status: sudo systemctl list-timers
+# View Timer Logs: journalctl -u db-backup.service

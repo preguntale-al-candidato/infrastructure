@@ -70,7 +70,7 @@ data "aws_ssm_parameter" "db_amazon_linux_ami" {
 ### ===========
 resource "aws_instance" "db" {
   ami                         = data.aws_ssm_parameter.db_amazon_linux_ami.value
-  instance_type               = "t4g.small"
+  instance_type               = "t4g.xlarge"
   associate_public_ip_address = true
   key_name                    = "jnonino-pac"
   vpc_security_group_ids      = [aws_security_group.db.id]

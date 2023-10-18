@@ -150,8 +150,8 @@ resource "aws_ecs_task_definition" "backend_api" {
       name              = "${local.name_prefix}-backend-api"
       image             = "${var.backend_api_image_name}:${var.backend_api_image_tag}"
       essential         = true
-      memoryReservation = 128
-      memory            = 512
+      memoryReservation = 512
+      memory            = 1024
       environment = [
         {
           name  = "MILVUS_HOST"

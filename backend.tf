@@ -201,8 +201,8 @@ module "autoscaling" {
 
   health_check_type = "EC2"
   min_size          = 1
-  max_size          = 1
-  desired_capacity  = 1
+  max_size          = 2
+  desired_capacity  = 2
   enable_monitoring = false
 
   # Required for managed_termination_protection = "ENABLED"

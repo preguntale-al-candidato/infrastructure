@@ -48,8 +48,8 @@ resource "aws_security_group_rule" "backend_ecs_asg_api_from_lb" {
   security_group_id = aws_security_group.backend_ecs_asg.id
 
   type                     = "ingress"
-  from_port                = 8000
-  to_port                  = 8000
+  from_port                = 49153
+  to_port                  = 65535
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.lb_sg.id
 }
@@ -174,7 +174,7 @@ resource "aws_ecs_task_definition" "backend_api" {
           appProtocol   = "http"
           protocol      = "tcp"
           containerPort = 8000
-          hostPort      = 8000
+          hostPort      = 0
         }
       ]
       logConfiguration = {

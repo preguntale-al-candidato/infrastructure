@@ -1,0 +1,8 @@
+{
+  "commitMessageTopic": "Terraform {{depName}}",
+  "fileMatch": [
+    "\\.tf$",
+    "\\.tfvars$",
+  ],
+  "pinDigests": false
+}
